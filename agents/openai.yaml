@@ -1,0 +1,7 @@
+interface:
+  display_name: "Clean Codex Subagents"
+  short_description: "Safely deletes closed subagent branches"
+  default_prompt: "Use $codex-clean-subagents to safely audit and clean closed Codex subagents."
+
+policy:
+  allow_implicit_invocation: false

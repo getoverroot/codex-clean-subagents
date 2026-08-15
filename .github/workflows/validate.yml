@@ -1,0 +1,56 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate Python syntax
+        run: python -m py_compile scripts/inventory_subagents.py
+
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'scripts/clean_subagents.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List *
+            exit 1
+          }
+
+      - name: Validate required skill metadata
+        shell: python
+        run: |
+          from pathlib import Path
+
+          text = Path('SKILL.md').read_text(encoding='utf-8')
+          assert text.startswith('---\n'), 'SKILL.md must start with YAML frontmatter'
+          _, frontmatter, _ = text.split('---', 2)
+          assert 'name: codex-clean-subagents' in frontmatter
+          assert 'description:' in frontmatter
+
+          metadata = Path('agents/openai.yaml').read_text(encoding='utf-8')
+          assert 'display_name: "Clean Codex Subagents"' in metadata
+          assert 'short_description:' in metadata
+          assert '$codex-clean-subagents' in metadata
+          assert 'allow_implicit_invocation: false' in metadata
+
+          readme = Path('README.md').read_text(encoding='utf-8')
+          assert 'Compatibility: Experimental' in readme
